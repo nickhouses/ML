@@ -6,7 +6,13 @@
 import pandas as pd
 import numpy as np
 
-#read in csv file, skip first row since it's names? 
-data = pd.read_csv('pokemon.csv', header=1)
+#read in csv file
+data = pd.read_csv('pokemon.csv')
 
+#knn stuff 
+k = 3
+
+#function for euclidean distance
+def euclidean_distance(x1, x2):
+    return np.sqrt(np.sum((x1 - x2)**2))  #euclidean
 

@@ -1,110 +1,169 @@
-# Nicholas Casas, 2001901158
-# Brandon Timok, 8000477724
-# CS 422 - Final Project
-
-# imports
+# Import necessary libraries
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
 
-# function for euclidean distance
+# Function to calculate euclidean distance
 def euclidean_distance(x1, x2):
-    return np.sqrt(np.sum((x1 - x2)**2))  #euclidean
+    # Euclidean distance is the square root of the sum of squared differences between two points
+    return np.sqrt(np.sum((x1 - x2)**2))
 
-# Goals: 
-# 1. Egg Hatch Times
-# 2. Best Starting 6 
+# Load the data from a CSV file
+data = pd.read_csv('./pokemon.csv')
 
-# read in csv file
-data = pd.read_csv('Project/pokemon.csv')
+# Keep a copy of the original DataFrame for later use
+original_data = data.copy()
 
-# Step 1: Data Cleaning and Preprocessing
-
-# Target feature for predicting egg hatch time
+# The target feature for predicting egg hatch time
 egg_target = data['base_egg_steps']
 
-# Step 2: Feature Engineering
+# Drop irrelevant columns that won't be useful for the model
+data = data.drop(columns=['pokedex_number', 'name', 'classfication'])
 
-# Step 3: Set up the regression problem
-
-# Target variable: base_egg_steps
+# Set up the regression problem
+# The target variable is 'base_egg_steps'
 y = data['base_egg_steps']
 
-# Features will be all other columns except for 'base_egg_steps'
+# The features are all other columns except for 'base_egg_steps'
 X = data.drop(columns=['base_egg_steps'])
 
-# Drop non-numeric columns
-X = X.select_dtypes(include='number')
+# Fill NaN values with mean for numeric columns and 'unknown' for categorical columns
+numeric_cols = X.select_dtypes(include='number').columns
+categorical_cols = X.select_dtypes(include='object').columns
+X[numeric_cols] = X[numeric_cols].fillna(X[numeric_cols].mean())
+X[categorical_cols] = X[categorical_cols].fillna('unknown')
 
-# Calculate correlations between features and target
-correlations = X.corrwith(y)
-
-# Select the top 10 features with the highest correlation
-top_features = correlations.abs().nlargest(10).index
-
-# Use only the selected features
-X = X[top_features]
-
-# Drop irrelevant columns
-X = X.drop(columns= ['against_bug', 'against_dark', 'against_dragon', 'against_electric', 
-                           'against_fairy', 'against_fight', 'against_fire', 'against_flying', 
-                           'against_ghost', 'against_grass', 'against_ground', 'against_ice', 
-                           'against_normal', 'against_poison', 'against_psychic', 'against_rock', 
-                           'against_steel', 'against_water','generation', 'is_legendary'])
-
-# Fill NaN values with mean
-X = X.fillna(X.mean())
-
-# Step 4: Split the data into training and testing sets
+# Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Data Scaling
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+# Function to predict a Pokémon's base egg steps given its index
+def predict_pokemon(model, X_test, y_test, original_data, index):
+    # Get the features for the selected Pokémon and convert to DataFrame
+    pokemon_features = pd.DataFrame([X_test.loc[index]])
 
-# Step 5: Implement KNN for regression
+    # Predict the base egg steps for the selected Pokémon and round to 2 decimal places
+    predicted_base_egg_steps = round(model.predict(pokemon_features)[0], 2)
 
-# Hyperparameter tuning
-params = {'n_neighbors': range(1, 10)}
-grid_search = GridSearchCV(KNeighborsRegressor(), params, cv=5)
-grid_search.fit(X_train_scaled, y_train)
+    # Get the actual base egg steps for the selected Pokémon
+    actual_base_egg_steps = y_test.loc[index]
 
-# kNN regressor 
-knn = grid_search.best_estimator_
+    # Get the name of the selected Pokémon
+    pokemon_name = original_data.loc[index, 'name']
 
-# Fit the model to the training data
-knn.fit(X_train, y_train)
+    # Print the results
+    print(f"Pokémon: {pokemon_name}")
+    print(f"Predicted base egg steps: {predicted_base_egg_steps}")
+    print(f"Actual base egg steps: {actual_base_egg_steps}")
 
-# Step 6: Make predictions 
+# Function to train and evaluate a K-Nearest Neighbors model
+def knn_model(X_train, y_train, X_test, y_test, original_data):
+    print("\n" + "-" * 50)
+    print("K-Nearest Neighbors Model")
+    print("-" * 50 + "\n")
 
-# Predict the egg hatch times for the test data
-y_pred = knn.predict(X_test)
+    # Data Scaling and One-Hot Encoding
+    numeric_transformer = StandardScaler()
+    categorical_transformer = OneHotEncoder(handle_unknown='ignore')
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', numeric_transformer, numeric_cols),
+            ('cat', categorical_transformer, categorical_cols)])
 
-# Prompt user for a Pokémon name
-pokemon_name = input("Enter the name of a Pokémon: ")
+    # Hyperparameter tuning
+    params = {
+        'regressor__n_neighbors': range(1, 10),
+        'regressor__weights': ['uniform', 'distance'],
+        'regressor__p': [1, 2]
+    }
+    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                               ('regressor', KNeighborsRegressor())])
+    grid_search = GridSearchCV(pipeline, params, cv=5)
+    grid_search.fit(X_train, y_train)
 
-# Find the Pokémon in the dataset
-pokemon_data = data[data['name'].str.lower() == pokemon_name.lower()]
+    # kNN regressor 
+    knn = grid_search.best_estimator_
 
-if len(pokemon_data) == 0:
-    print(f"Error: Pokémon '{pokemon_name}' not found in the dataset.")
-else:
-    # Extract numerical features for the found Pokémon
-    pokemon_features = pokemon_data[X.columns]  # Use same columns as X_train
-    # pokemon_features = pokemon_features.fillna(X_train.mean())  # Fill missing values with X_train mean
+    # Fit the model to the training data
+    knn.fit(X_train, y_train)
 
-    # Make sure to scale the Pokemon features before making predictions
-    pokemon_features_scaled = scaler.transform(pokemon_features)
+    # Predict the egg hatch times for the test data
+    y_pred = knn.predict(X_test)
 
-    # Make prediction for base egg steps using the kNN model
-    predicted_base_egg_steps = knn.predict(pokemon_features)
+    # Calculate Mean Absolute Error (MAE) and round to 2 decimal places
+    mae = round(mean_absolute_error(y_test, y_pred), 2)
+    print(f"Mean Absolute Error (MAE): {mae}")
 
-    # Get the actual base_egg_steps from the dataset
-    actual_base_egg_steps = pokemon_data['base_egg_steps'].values[0]
+    # Calculate Mean Squared Error (MSE) and round to 2 decimal places
+    mse = round(mean_squared_error(y_test, y_pred), 2)
+    print(f"Mean Squared Error (MSE): {mse}")
 
-    # Print predicted and actual base egg steps
-    print(f"Predicted base egg steps for {pokemon_name}: {predicted_base_egg_steps[0]:.0f}")
-    print(f"Actual base egg steps for {pokemon_name}: {actual_base_egg_steps}")
+    # Calculate Root Mean Squared Error (RMSE) and round to 2 decimal places
+    rmse = round(np.sqrt(mse), 2)
+    print(f"Root Mean Squared Error (RMSE): {rmse}")
+
+    return knn
+
+# Function to train and evaluate a Random Forest model
+def random_forest_model(X_train, y_train, X_test, y_test, original_data):
+    print("\n" + "-" * 50)
+    print("Random Forest Model")
+    print("-" * 50 + "\n")
+
+    # Data Scaling and One-Hot Encoding
+    numeric_transformer = StandardScaler()
+    categorical_transformer = OneHotEncoder(handle_unknown='ignore')
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', numeric_transformer, numeric_cols),
+            ('cat', categorical_transformer, categorical_cols)])
+
+    # Hyperparameter tuning
+    params = {
+        'regressor__n_estimators': [100, 200, 300],
+        'regressor__max_depth': [None, 5, 10],
+        'regressor__min_samples_split': [2, 5, 10]
+    }
+    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                               ('regressor', RandomForestRegressor(random_state=42))])
+    grid_search = GridSearchCV(pipeline, params, cv=5)
+    grid_search.fit(X_train, y_train)
+
+    # Random Forest regressor 
+    rf = grid_search.best_estimator_
+
+    # Fit the model to the training data
+    rf.fit(X_train, y_train)
+
+    # Predict the egg hatch times for the test data
+    y_pred = rf.predict(X_test)
+
+    # Calculate Mean Absolute Error (MAE) and round to 2 decimal places
+    mae = round(mean_absolute_error(y_test, y_pred), 2)
+    print(f"Mean Absolute Error (MAE): {mae}")
+
+    # Calculate Mean Squared Error (MSE) and round to 2 decimal places
+    mse = round(mean_squared_error(y_test, y_pred), 2)
+    print(f"Mean Squared Error (MSE): {mse}")
+
+    # Calculate Root Mean Squared Error (RMSE) and round to 2 decimal places
+    rmse = round(np.sqrt(mse), 2)
+    print(f"Root Mean Squared Error (RMSE): {rmse}")
+
+    return rf
+
+# Generate a random index for comparison
+random_index = np.random.choice(X_test.index)
+
+# Call the knn_model function to train and evaluate a K-Nearest Neighbors model
+knn = knn_model(X_train, y_train, X_test, y_test, original_data)
+predict_pokemon(knn, X_test, y_test, original_data, random_index)
+
+# Call the random_forest_model function to train and evaluate a Random Forest model
+rf = random_forest_model(X_train, y_train, X_test, y_test, original_data)
+predict_pokemon(rf, X_test, y_test, original_data, random_index)

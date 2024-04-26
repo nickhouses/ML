@@ -1,6 +1,7 @@
 # Import necessary libraries
 import pandas as pd
 import numpy as np
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -8,11 +9,6 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
-
-# Function to calculate euclidean distance
-def euclidean_distance(x1, x2):
-    # Euclidean distance is the square root of the sum of squared differences between two points
-    return np.sqrt(np.sum((x1 - x2)**2))
 
 # Load the data from a CSV file
 data = pd.read_csv('./pokemon.csv')
@@ -157,13 +153,56 @@ def random_forest_model(X_train, y_train, X_test, y_test, original_data):
 
     return rf
 
+# Function to train and evaluate a Linear Regression model
+def linear_regression_model(X_train, y_train, X_test, y_test, original_data):
+    print("\n" + "-" * 50)
+    print("Linear Regression Model")
+    print("-" * 50 + "\n")
+
+    # Data Scaling and One-Hot Encoding
+    numeric_transformer = StandardScaler()
+    categorical_transformer = OneHotEncoder(handle_unknown='ignore')
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', numeric_transformer, numeric_cols),
+            ('cat', categorical_transformer, categorical_cols)])
+
+    # Linear Regression model with specified parameters
+    lr = LinearRegression()
+
+    # Create a pipeline with preprocessor and LR model
+    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                               ('regressor', lr)])
+
+    # Fit the pipeline to the training data
+    pipeline.fit(X_train, y_train)
+
+    # Predict the target variable for the test data
+    y_pred = pipeline.predict(X_test)
+
+    # Calculate evaluation metrics
+    mae = round(mean_absolute_error(y_test, y_pred), 2)
+    mse = round(mean_squared_error(y_test, y_pred), 2)
+    rmse = round(np.sqrt(mse), 2)
+
+    # Print evaluation metrics
+    print(f"Mean Absolute Error (MAE): {mae}")
+    print(f"Mean Squared Error (MSE): {mse}")
+    print(f"Root Mean Squared Error (RMSE): {rmse}")
+
+    return pipeline
+
 # Generate a random index for comparison
 random_index = np.random.choice(X_test.index)
 
 # Call the knn_model function to train and evaluate a K-Nearest Neighbors model
-knn = knn_model(X_train, y_train, X_test, y_test, original_data)
-predict_pokemon(knn, X_test, y_test, original_data, random_index)
+#knn = knn_model(X_train, y_train, X_test, y_test, original_data)
+#predict_pokemon(knn, X_test, y_test, original_data, random_index)
 
 # Call the random_forest_model function to train and evaluate a Random Forest model
-rf = random_forest_model(X_train, y_train, X_test, y_test, original_data)
-predict_pokemon(rf, X_test, y_test, original_data, random_index)
+#rf = random_forest_model(X_train, y_train, X_test, y_test, original_data)
+#predict_pokemon(rf, X_test, y_test, original_data, random_index)
+
+# Call the random_forest_model function to train and evaluate a Random Forest model
+lr = linear_regression_model(X_train, y_train, X_test, y_test, original_data)
+predict_pokemon(lr, X_test, y_test, original_data, random_index)

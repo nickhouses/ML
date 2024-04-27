@@ -196,12 +196,12 @@ def linear_regression_model(X_train, y_train, X_test, y_test, original_data):
 random_index = np.random.choice(X_test.index)
 
 # Call the knn_model function to train and evaluate a K-Nearest Neighbors model
-#knn = knn_model(X_train, y_train, X_test, y_test, original_data)
-#predict_pokemon(knn, X_test, y_test, original_data, random_index)
+knn = knn_model(X_train, y_train, X_test, y_test, original_data)
+predict_pokemon(knn, X_test, y_test, original_data, random_index)
 
 # Call the random_forest_model function to train and evaluate a Random Forest model
-#rf = random_forest_model(X_train, y_train, X_test, y_test, original_data)
-#predict_pokemon(rf, X_test, y_test, original_data, random_index)
+rf = random_forest_model(X_train, y_train, X_test, y_test, original_data)
+predict_pokemon(rf, X_test, y_test, original_data, random_index)
 
 # Call the random_forest_model function to train and evaluate a Random Forest model
 lr = linear_regression_model(X_train, y_train, X_test, y_test, original_data)

@@ -167,27 +167,29 @@ def linear_regression_model(X_train, y_train, X_test, y_test, original_data):
             ('num', numeric_transformer, numeric_cols),
             ('cat', categorical_transformer, categorical_cols)])
 
-    # Linear Regression model with specified parameters
+    # Linear Regression
     lr = LinearRegression()
 
-    # Create a pipeline with preprocessor and LR model
+    # Create a pipeline with preprocessor and lr model
     pipeline = Pipeline(steps=[('preprocessor', preprocessor),
                                ('regressor', lr)])
 
-    # Fit the pipeline to the training data
+    # Fit model to the training data
     pipeline.fit(X_train, y_train)
 
-    # Predict the target variable for the test data
+    # Predict the egg hatch times for the test data
     y_pred = pipeline.predict(X_test)
 
-    # Calculate evaluation metrics
+    # Calculate Mean Absolute Error (MAE) and round to 2 decimal places
     mae = round(mean_absolute_error(y_test, y_pred), 2)
-    mse = round(mean_squared_error(y_test, y_pred), 2)
-    rmse = round(np.sqrt(mse), 2)
-
-    # Print evaluation metrics
     print(f"Mean Absolute Error (MAE): {mae}")
+
+    # Calculate Mean Squared Error (MSE) and round to 2 decimal places
+    mse = round(mean_squared_error(y_test, y_pred), 2)
     print(f"Mean Squared Error (MSE): {mse}")
+
+    # Calculate Root Mean Squared Error (RMSE) and round to 2 decimal places
+    rmse = round(np.sqrt(mse), 2)
     print(f"Root Mean Squared Error (RMSE): {rmse}")
 
     return pipeline
@@ -203,6 +205,6 @@ predict_pokemon(knn, X_test, y_test, original_data, random_index)
 rf = random_forest_model(X_train, y_train, X_test, y_test, original_data)
 predict_pokemon(rf, X_test, y_test, original_data, random_index)
 
-# Call the random_forest_model function to train and evaluate a Random Forest model
+# Call the linear_regression function to train and evaluate a Linear Regression model
 lr = linear_regression_model(X_train, y_train, X_test, y_test, original_data)
 predict_pokemon(lr, X_test, y_test, original_data, random_index)
